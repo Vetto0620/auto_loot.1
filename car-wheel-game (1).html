@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<title>AUTO LOOT</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0f;--panel:#12121a;--border:#1e1e2e;--C:#7a8899;--U:#4fc978;--R:#3b9eff;--E:#b06aff;--L:#ff9f1c;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html{font-size:16px;height:100%;}
+body{background:var(--bg);color:#e0e0f0;font-family:'Rajdhani',sans-serif;min-height:100vh;
+  overflow-x:hidden;-webkit-text-size-adjust:100%;
+  padding-bottom:env(safe-area-inset-bottom);
+  padding-left:env(safe-area-inset-left);
+  padding-right:env(safe-area-inset-right);}
+
+/* ── HEADER ── */
+header{text-align:center;padding:clamp(1rem,4vw,1.8rem) 1rem .4rem;position:relative;z-index:1;}
+header h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.4rem,10vw,5rem);letter-spacing:.12em;
+  background:linear-gradient(135deg,#ff9f1c,#ff4e50,#b06aff);-webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;background-clip:text;line-height:1;}
+header p{font-family:'Space Mono',monospace;font-size:clamp(.5rem,.6rem + .2vw,.65rem);
+  color:#444;letter-spacing:.12em;margin-top:.3rem;}
+
+/* ── PROGRESS ── */
+.prog-wrap{width:min(560px,94vw);margin:.6rem auto 0;padding:0 .5rem;}
+.prog-label{font-family:'Space Mono',monospace;font-size:clamp(.52rem,.6rem,.7rem);color:#444;
+  letter-spacing:.1em;display:flex;justify-content:space-between;margin-bottom:.3rem;}
+.prog-track{height:3px;background:#1a1a2a;border-radius:2px;overflow:hidden;}
+.prog-fill{height:100%;background:linear-gradient(90deg,#3b9eff,#b06aff,#ff9f1c);
+  border-radius:2px;transition:width .5s ease;}
+.prog-dots{display:flex;gap:.22rem;margin-top:.4rem;justify-content:center;flex-wrap:wrap;}
+.pdot{width:clamp(22px,5.5vw,26px);height:clamp(22px,5.5vw,26px);border-radius:4px;
+  border:1px solid #1e1e2e;background:#0d0d18;display:flex;align-items:center;justify-content:center;
+  font-family:'Space Mono',monospace;font-size:clamp(.4rem,.5rem,.55rem);color:#252535;transition:all .3s;}
+.pdot.active{border-color:var(--L);background:rgba(255,159,28,.1);color:var(--L);animation:pulse 1s ease-in-out infinite;}
+.pdot.done-common{border-color:var(--C);background:rgba(122,136,153,.14);color:var(--C);}
+.pdot.done-uncommon{border-color:var(--U);background:rgba(79,201,120,.09);color:var(--U);}
+.pdot.done-rare{border-color:var(--R);background:rgba(59,158,255,.09);color:var(--R);box-shadow:0 0 5px rgba(59,158,255,.25);}
+.pdot.done-epic{border-color:var(--E);background:rgba(176,106,255,.09);color:var(--E);box-shadow:0 0 7px rgba(176,106,255,.25);}
+.pdot.done-legendary{border-color:var(--L);background:rgba(255,159,28,.09);color:var(--L);box-shadow:0 0 9px rgba(255,159,28,.35);}
+@keyframes pulse{0%,100%{box-shadow:0 0 3px rgba(255,159,28,.3);}50%{box-shadow:0 0 12px rgba(255,159,28,.7);}}
+
+/* ── MAIN LAYOUT ── */
+.main{display:flex;flex-direction:column;align-items:center;
+  gap:clamp(.8rem,2.5vw,1.3rem);padding:.6rem .8rem clamp(2rem,6vw,3rem);}
+
+/* ── WHEEL ── */
+.wheel-wrap{position:relative;
+  width:min(340px,82vw);height:min(340px,82vw);}
+.wheel-ptr{position:absolute;top:-13px;left:50%;transform:translateX(-50%);
+  width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;
+  border-top:20px solid var(--L);z-index:10;filter:drop-shadow(0 0 6px var(--L));}
+canvas#wheel{width:100%;height:100%;border-radius:50%;
+  box-shadow:0 0 40px rgba(176,106,255,.14),0 0 80px rgba(59,158,255,.07);
+  touch-action:none;}
+
+/* ── LEGEND ── */
+.legend{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center;
+  font-family:'Space Mono',monospace;font-size:clamp(.46rem,.55rem,.62rem);
+  letter-spacing:.07em;color:#333;max-width:94vw;}
+.legend span{display:flex;align-items:center;gap:.2rem;white-space:nowrap;}
+.legend span::before{content:'■';font-size:.65rem;}
+.lC::before{color:var(--C);}.lU::before{color:var(--U);}.lR::before{color:var(--R);}
+.lE::before{color:var(--E);}.lL::before{color:var(--L);}
+
+/* ── NEXT HINT ── */
+.next-hint{font-family:'Space Mono',monospace;font-size:clamp(.55rem,.65rem,.72rem);
+  color:#333;letter-spacing:.08em;text-align:center;padding:0 1rem;}
+.next-hint b{color:#555;}
+
+/* ── SPIN BUTTON — big and thumb-friendly ── */
+.spin-btn{font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(1.6rem,5vw,1.9rem);letter-spacing:.2em;
+  padding:clamp(.7rem,2.5vw,.85rem) clamp(2rem,8vw,3.5rem);
+  background:linear-gradient(135deg,#ff9f1c,#ff4e50);color:#000;
+  border:none;cursor:pointer;
+  clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);
+  transition:transform .1s,box-shadow .2s;
+  box-shadow:0 4px 28px rgba(255,159,28,.38);
+  min-width:clamp(180px,55vw,260px);
+  /* bigger tap target */
+  min-height:56px;
+  touch-action:manipulation;}
+.spin-btn:active{transform:scale(.95);}
+.spin-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+
+/* ── RESULT CARD ── */
+.res-area{width:min(560px,95vw);}
+.no-res{text-align:center;font-family:'Space Mono',monospace;
+  font-size:clamp(.52rem,.6rem,.68rem);color:#252535;
+  letter-spacing:.1em;padding:1.2rem;border:1px dashed #191928;}
+
+.scard{background:var(--panel);border:1px solid var(--border);
+  padding:clamp(1rem,3vw,1.3rem) clamp(1rem,4vw,1.7rem);
+  position:relative;overflow:hidden;animation:cIn .38s cubic-bezier(.34,1.56,.64,1);}
+@keyframes cIn{from{transform:translateY(14px) scale(.96);opacity:0;}
+               to{transform:translateY(0) scale(1);opacity:1;}}
+.scard::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.scard.common::before  {background:var(--C);}
+.scard.uncommon::before{background:var(--U);}
+.scard.rare::before    {background:var(--R);box-shadow:0 0 12px rgba(59,158,255,.45);}
+.scard.epic::before    {background:var(--E);box-shadow:0 0 16px rgba(176,106,255,.45);}
+.scard.legendary::before{background:var(--L);box-shadow:0 0 20px rgba(255,159,28,.55);}
+
+.rbadge{font-family:'Space Mono',monospace;font-size:clamp(.5rem,.58rem,.65rem);
+  letter-spacing:.2em;padding:.15rem .4rem;display:inline-block;margin-bottom:.5rem;}
+.common .rbadge  {background:rgba(122,136,153,.1);color:var(--C);border:1px solid var(--C);}
+.uncommon .rbadge{background:rgba(79,201,120,.07); color:var(--U);border:1px solid var(--U);}
+.rare .rbadge    {background:rgba(59,158,255,.07); color:var(--R);border:1px solid var(--R);}
+.epic .rbadge    {background:rgba(176,106,255,.07);color:var(--E);border:1px solid var(--E);}
+.legendary .rbadge{background:rgba(255,159,28,.07);color:var(--L);border:1px solid var(--L);}
+
+.sname{font-family:'Bebas Neue',sans-serif;font-size:clamp(.85rem,.95rem,1.05rem);
+  letter-spacing:.12em;color:#555;margin-bottom:.12rem;}
+.sval{font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(1.4rem,5.5vw,2.6rem);line-height:1.1;letter-spacing:.04em;}
+.common .sval  {color:var(--C);}
+.uncommon .sval{color:var(--U);}
+.rare .sval    {color:var(--R);text-shadow:0 0 16px rgba(59,158,255,.35);}
+.epic .sval    {color:var(--E);text-shadow:0 0 16px rgba(176,106,255,.35);}
+.legendary .sval{color:var(--L);text-shadow:0 0 22px rgba(255,159,28,.45);}
+
+.ssub{font-family:'Rajdhani',sans-serif;font-size:clamp(.82rem,.9rem,1rem);
+  color:#4a4a6a;margin-top:.1rem;}
+.sextra{font-family:'Space Mono',monospace;font-size:clamp(.52rem,.6rem,.68rem);
+  color:#555;margin-top:.3rem;letter-spacing:.05em;}
+.sextra strong{color:#ddd;}
+.sdesc{font-size:clamp(.75rem,.82rem,.9rem);color:#3a3a5a;margin-top:.25rem;font-weight:300;}
+
+/* ── COLLECTION ── */
+.coll-hdr{width:min(560px,95vw);display:flex;align-items:center;gap:.8rem;}
+.coll-hdr h2{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.1rem,1.25rem,1.4rem);
+  letter-spacing:.15em;color:#2a2a3a;}
+.coll-hdr span{font-family:'Space Mono',monospace;font-size:clamp(.5rem,.58rem,.65rem);color:#252535;}
+.rbtn{margin-left:auto;font-family:'Space Mono',monospace;font-size:clamp(.5rem,.56rem,.62rem);
+  letter-spacing:.09em;padding:.4rem .8rem;background:transparent;border:1px solid #1a1a2a;
+  color:#2a2a3a;cursor:pointer;transition:all .2s;min-height:40px;touch-action:manipulation;}
+.rbtn:active{border-color:#ff4e50;color:#ff4e50;}
+
+.coll{width:min(560px,95vw);
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(110px,38vw,155px),1fr));gap:.4rem;}
+.ci{background:var(--panel);border:1px solid var(--border);
+  padding:clamp(.5rem,.65rem,.8rem) clamp(.7rem,.85rem,1rem);position:relative;overflow:hidden;}
+.ci::after{content:'';position:absolute;top:0;left:0;width:3px;height:100%;}
+.ci.common::after  {background:var(--C);}
+.ci.uncommon::after{background:var(--U);}
+.ci.rare::after    {background:var(--R);box-shadow:2px 0 6px rgba(59,158,255,.22);}
+.ci.epic::after    {background:var(--E);box-shadow:2px 0 8px rgba(176,106,255,.22);}
+.ci.legendary::after{background:var(--L);box-shadow:2px 0 10px rgba(255,159,28,.32);}
+.cn{font-family:'Space Mono',monospace;font-size:clamp(.44rem,.52rem,.58rem);
+  color:#2a2a4a;letter-spacing:.05em;text-transform:uppercase;margin-bottom:.15rem;}
+.cv2{font-family:'Bebas Neue',sans-serif;font-size:clamp(.85rem,.95rem,1.05rem);
+  letter-spacing:.03em;line-height:1.2;}
+.ci.common .cv2  {color:var(--C);}.ci.uncommon .cv2{color:var(--U);}.ci.rare .cv2{color:var(--R);}
+.ci.epic .cv2    {color:var(--E);}.ci.legendary .cv2{color:var(--L);}
+
+/* ── FINAL SCREEN ── */
+.fin{width:min(600px,96vw);background:var(--panel);border:1px solid #1e1e2e;
+  position:relative;overflow:hidden;animation:cIn .6s cubic-bezier(.34,1.56,.64,1);}
+.fin::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;
+  background:linear-gradient(90deg,#ff9f1c,#ff4e50,#b06aff,#3b9eff);
+  box-shadow:0 0 18px rgba(255,159,28,.45);}
+.fin-hdr{text-align:center;padding:clamp(1.2rem,4vw,1.8rem) 1.5rem .9rem;border-bottom:1px solid #191928;}
+.fin-hdr .flag{font-size:2rem;margin-bottom:.35rem;}
+.fin-hdr h2{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.6rem,5vw,2rem);letter-spacing:.18em;
+  background:linear-gradient(135deg,#ff9f1c,#ff4e50);-webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;background-clip:text;}
+.fin-hdr p{font-family:'Space Mono',monospace;font-size:clamp(.48rem,.56rem,.62rem);
+  color:#3a3a5a;letter-spacing:.1em;margin-top:.2rem;}
+
+/* 2 cols on mobile, 3 on wider screens */
+.pgrid{display:grid;grid-template-columns:repeat(2,1fr);}
+@media(min-width:480px){.pgrid{grid-template-columns:repeat(3,1fr);}}
+.pi{padding:clamp(.9rem,2.5vw,1.2rem) clamp(.5rem,1.5vw,.8rem);text-align:center;
+  border-right:1px solid #191928;border-bottom:1px solid #191928;}
+/* 2-col: remove right border every 2nd */
+.pgrid .pi:nth-child(2n)  {border-right:none;}
+.pgrid .pi:nth-last-child(-n+2){border-bottom:none;}
+@media(min-width:480px){
+  .pgrid .pi:nth-child(2n){border-right:1px solid #191928;}
+  .pgrid .pi:nth-last-child(-n+2){border-bottom:1px solid #191928;}
+  .pgrid .pi:nth-child(3n){border-right:none;}
+  .pgrid .pi:nth-last-child(-n+3){border-bottom:none;}
+}
+.pl{font-family:'Space Mono',monospace;font-size:clamp(.44rem,.5rem,.56rem);
+  color:#3a3a5a;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.3rem;}
+.pv{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.3rem,4.5vw,1.9rem);letter-spacing:.04em;line-height:1;}
+.pu{font-family:'Rajdhani',sans-serif;font-size:clamp(.6rem,.68rem,.75rem);color:#3a3a5a;margin-top:.1rem;}
+.h0{color:#ff4e50;text-shadow:0 0 12px rgba(255,78,80,.35);}
+.h1{color:#3b9eff;text-shadow:0 0 12px rgba(59,158,255,.35);}
+.h2{color:#ff9f1c;text-shadow:0 0 12px rgba(255,159,28,.35);}
+.h3{color:#b06aff;text-shadow:0 0 12px rgba(176,106,255,.35);}
+.h4{color:#4fc978;text-shadow:0 0 12px rgba(79,201,120,.35);}
+
+.cost-sec{padding:clamp(.8rem,2.5vw,1.1rem) 1.5rem;border-bottom:1px solid #191928;text-align:center;}
+.cost-lbl{font-family:'Space Mono',monospace;font-size:clamp(.48rem,.55rem,.6rem);
+  color:#3a3a5a;letter-spacing:.12em;margin-bottom:.3rem;}
+.cost-val{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.5rem,6vw,2.4rem);
+  color:var(--L);text-shadow:0 0 20px rgba(255,159,28,.45);letter-spacing:.05em;}
+
+.score-sec{padding:clamp(1rem,3vw,1.3rem) 1.5rem;text-align:center;}
+.score-lbl{font-family:'Space Mono',monospace;font-size:clamp(.48rem,.55rem,.6rem);
+  color:#3a3a5a;letter-spacing:.15em;margin-bottom:.4rem;}
+.score-stars{font-size:clamp(1.2rem,4vw,1.5rem);letter-spacing:.1em;margin-bottom:.3rem;}
+.score-name{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.4rem,5vw,1.8rem);letter-spacing:.15em;}
+.ss{color:var(--L);text-shadow:0 0 16px rgba(255,159,28,.55);}
+.sa{color:var(--E);text-shadow:0 0 12px rgba(176,106,255,.45);}
+.sb{color:var(--R);}.sc{color:var(--U);}.sd{color:var(--C);}
+
+.pa-btn{margin-top:.8rem;font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(1.1rem,4vw,1.3rem);letter-spacing:.18em;
+  padding:clamp(.5rem,2vw,.6rem) clamp(1.5rem,6vw,2.2rem);
+  background:transparent;border:1px solid var(--L);color:var(--L);cursor:pointer;
+  clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  transition:all .2s;min-height:50px;touch-action:manipulation;}
+.pa-btn:active{background:rgba(255,159,28,.09);}
+
+/* ── SPARKS ── */
+.sparks{position:fixed;inset:0;pointer-events:none;z-index:100;}
+.spark{position:absolute;width:5px;height:5px;border-radius:50%;animation:sfly .85s ease-out forwards;}
+@keyframes sfly{0%{transform:translate(0,0) scale(1);opacity:1;}
+                100%{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0;}}
+</style>
+</head>
+<body>
+<div class="sparks" id="sparks"></div>
+<header>
+  <h1>AUTO LOOT</h1>
+  <p>// RARITÀ RUOTA = QUALITÀ STATISTICA — GARANTITO //</p>
+</header>
+
+<div class="prog-wrap">
+  <div class="prog-label"><span id="pText">SPIN 0 / 16</span><span id="pPct">0%</span></div>
+  <div class="prog-track"><div class="prog-fill" id="pFill" style="width:0%"></div></div>
+  <div class="prog-dots" id="pDots"></div>
+</div>
+
+<div class="main">
+  <div class="wheel-wrap">
+    <div class="wheel-ptr"></div>
+    <canvas id="wheel" width="10" height="10" style="width:100%;height:100%;display:block;"></canvas>
+  </div>
+  <div class="legend">
+    <span class="lC">COMUNE 40%</span><span class="lU">NON COMUNE 28%</span>
+    <span class="lR">RARO 18%</span><span class="lE">EPICO 10%</span><span class="lL">LEGGENDARIO 4%</span>
+  </div>
+  <div class="next-hint" id="nHint">Prossima: <b id="nName">TIPO DI VEICOLO</b></div>
+  <button class="spin-btn" id="spinBtn" onclick="spin()">GIRA</button>
+  <div class="res-area" id="resArea">
+    <div class="no-res">// GIRA LA RUOTA — COMUNE = SCARSO · LEGGENDARIO = ECCEZIONALE //</div>
+  </div>
+  <div class="coll-hdr">
+    <h2>LA TUA AUTO</h2><span id="cCount">0 / 14</span>
+    <button class="rbtn" onclick="resetGame()">RESET</button>
+  </div>
+  <div class="coll" id="coll"></div>
+</div>
+
+<script>
+// ================================================================
+// THE WHEEL
+// The wheel has 5 colored segments. The pointer is fixed at the TOP.
+// We draw the wheel rotated by `wheelAngle` radians.
+// Segment i occupies angles [startAngle_i, startAngle_i + seg.sweep].
+// The pointer points at canvas angle = -π/2 (top of circle).
+// After applying rotation, segment i is "at the top" when:
+//   startAngle_i + seg.sweep/2 + wheelAngle ≡ -π/2  (mod 2π)
+// So to land segment i at top:
+//   wheelAngle_target = -π/2 - (startAngle_i + seg.sweep/2)   [mod 2π]
+//
+// KEY INSIGHT: we ALWAYS spin FORWARD (increase wheelAngle).
+// Each spin: wheelAngle += (several full rotations) + adjustmentToTarget
+// ================================================================
+
+const SEGS = [
+  // The ORDER here defines where each segment physically sits on the wheel.
+  // This order never changes.
+  {name:'COMUNE',      key:'common',    prob:.40, color:'#7a8899', tierIdx:0},
+  {name:'NON COMUNE',  key:'uncommon',  prob:.28, color:'#4fc978', tierIdx:1},
+  {name:'RARO',        key:'rare',      prob:.18, color:'#3b9eff', tierIdx:2},
+  {name:'EPICO',       key:'epic',      prob:.10, color:'#b06aff', tierIdx:3},
+  {name:'LEGGENDARIO', key:'legendary', prob:.04, color:'#ff9f1c', tierIdx:4},
+];
+
+// Pre-compute each segment's start angle and sweep (in radians, starting from angle 0 = 3 o'clock)
+const TAU = Math.PI * 2;
+let acc = 0;
+SEGS.forEach(seg => {
+  seg.sweep = seg.prob * TAU;
+  seg.start = acc;
+  seg.mid   = acc + seg.sweep / 2;  // midpoint angle of this segment
+  acc += seg.sweep;
+});
+
+// The pointer is at the TOP of the canvas = angle -π/2 in standard canvas coords.
+// When we draw the wheel with ctx.rotate(wheelAngle), a point originally at angle θ
+// moves to angle θ + wheelAngle.
+// For segment midpoint to be at top: seg.mid + wheelAngle = -π/2 + n*2π
+// => wheelAngle = -π/2 - seg.mid + n*2π  (choose n so wheelAngle > current)
+const POINTER_ANGLE = -Math.PI / 2;
+
+function targetWheelAngle(seg, currentWheelAngle) {
+  // Raw target (mod 2π issue handled below)
+  let raw = POINTER_ANGLE - seg.mid;
+  // Normalize so raw is in [0, 2π)
+  raw = ((raw % TAU) + TAU) % TAU;
+  // We want a value > currentWheelAngle, with at least 6 full spins added
+  const minFwdSpins = 6;
+  // How many full TAU to add?
+  const base = currentWheelAngle + minFwdSpins * TAU;
+  // Find n such that raw + n*TAU >= base
+  const n = Math.ceil((base - raw) / TAU);
+  return raw + n * TAU;
+}
+
+// ================================================================
+// DRAW WHEEL — responsive, retina-ready
+// ================================================================
+const cvs = document.getElementById('wheel');
+const ctx = cvs.getContext('2d');
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const displaySize = cvs.parentElement.clientWidth;
+  if (displaySize === 0) return; // layout not ready yet
+  cvs.width  = Math.round(displaySize * dpr);
+  cvs.height = Math.round(displaySize * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawWheel();
+}
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 200));
+// Init canvas once layout is ready
+document.addEventListener('DOMContentLoaded', () => setTimeout(resizeCanvas, 60));
+
+let wheelAngle = 0;
+
+function getLS() { return cvs.parentElement.clientWidth; }
+
+function drawWheel() {
+  const SZ = getLS();
+  const CX = SZ/2, CY = SZ/2, R = SZ/2 - 7;
+  ctx.clearRect(0, 0, SZ, SZ);
+  ctx.save();
+  ctx.translate(CX, CY);
+  ctx.rotate(wheelAngle);
+
+  SEGS.forEach(seg => {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, R, seg.start, seg.start + seg.sweep);
+    ctx.closePath();
+    ctx.fillStyle = seg.color + '22';
+    ctx.fill();
+    ctx.strokeStyle = seg.color + '66';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.rotate(seg.mid);
+    ctx.translate(R * 0.6, 0);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillStyle = seg.color;
+    ctx.font = `bold ${Math.max(9, Math.floor(SZ * .028))}px "Bebas Neue", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(seg.name, 0, 0);
+    ctx.restore();
+  });
+
+  ctx.restore();
+
+  const cRad = Math.max(22, SZ * 0.089);
+  const cg = ctx.createRadialGradient(CX, CY, 0, CX, CY, cRad);
+  cg.addColorStop(0, '#1a1a2e'); cg.addColorStop(1, '#080810');
+  ctx.beginPath(); ctx.arc(CX, CY, cRad, 0, TAU);
+  ctx.fillStyle = cg; ctx.fill();
+  ctx.strokeStyle = '#252540'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#ff9f1c';
+  ctx.font = `bold ${Math.floor(SZ * .048)}px "Bebas Neue"`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('AUTO', CX, CY - 7);
+  ctx.fillText('LOOT', CX, CY + 10);
+}
+// Initial draw — wait for layout AND fonts
+document.fonts.ready.then(() => {
+  requestAnimationFrame(() => resizeCanvas());
+});
+
+// ================================================================
+// STATS — 14 in fixed order, 5 tiers each (tierIdx 0..4 = C/U/R/E/L)
+// ================================================================
+const STATS = [
+  { id:'veicolo', name:'TIPO DI VEICOLO', desc:'Categoria carrozzeria',
+    tiers:[
+      {l:'City Car',           score:2, sub:'Utilitaria — lenta e fragile',          costBase:7000},
+      {l:'Crossover SUV',      score:4, sub:'SUV urbano compatto',                    costBase:16000},
+      {l:'Berlina Sportiva',   score:6, sub:'4 porte ad alte prestazioni',            costBase:28000},
+      {l:'Coupé Sportiva',     score:8, sub:'2 porte — agilità e stile',              costBase:45000},
+      {l:'Hypercar',           score:10,sub:'Il massimo assoluto — vettura da sogno', costBase:280000},
+    ]},
+  { id:'motore', name:'TIPO DI MOTORE', desc:'Architettura motore',
+    tiers:[
+      {l:'3 cil. 1.0L benzina',     score:1, sub:'Microturbo da economia',              costM:2500},
+      {l:'4 cil. 1.6L Turbo',       score:3, sub:'Compatto turbocompresso',             costM:6500},
+      {l:'Inline-6 3.0L Biturbo',   score:6, sub:'Sei cilindri — dolce e potente',      costM:16000},
+      {l:'V8 4.0L Biturbo',         score:8, sub:'Otto cilindri — suono brutale',       costM:42000},
+      {l:'V12 6.5L Atmosferico',    score:10,sub:'Dodici cilindri — leggenda pura',     costM:130000},
+    ]},
+  { id:'fuel', name:'ALIMENTAZIONE', desc:'Sistema energetico',
+    tiers:[
+      {l:'GPL',            score:2, sub:'Gas — economico ma limitato',     costF:600},
+      {l:'Diesel',         score:3, sub:'Gasolio — coppia abbondante',     costF:800},
+      {l:'Benzina 98',     score:5, sub:'Premium unleaded',                costF:400},
+      {l:'Ibrido PHEV',    score:7, sub:'Termico + elettrico ricaricabile',costF:9000},
+      {l:'Full Elettrico', score:10,sub:'Zero emissioni — coppia istantanea',costF:28000},
+    ]},
+  { id:'cv', name:'CAVALLI', desc:'Potenza motore base',
+    tiers:[
+      {l:'80 CV',  score:1, cv:80,  sub:'Deludente — stento in salita',         costCV:0},
+      {l:'160 CV', score:3, cv:160, sub:'Nella media — sufficiente',            costCV:0},
+      {l:'280 CV', score:5, cv:280, sub:'Sportivo — si sente davvero',          costCV:0},
+      {l:'450 CV', score:8, cv:450, sub:'Molto potente — adrenalina pura',      costCV:0},
+      {l:'750 CV', score:10,cv:750, sub:'Fuori controllo — pericoloso e bello', costCV:0},
+    ]},
+  { id:'boost', name:'SOVRALIMENTAZIONE', desc:'Pressurizzazione aria',
+    tiers:[
+      {l:'Nessuna — Aspirato',     score:1, bm:1.00, sub:'Aria naturale — nessun boost',    costB:0},
+      {l:'Turbo singolo',          score:3, bm:1.18, sub:'+18% potenza',                    costB:2200},
+      {l:'Twin-Scroll Turbo',      score:5, bm:1.28, sub:'+28% potenza',                    costB:4800},
+      {l:'Biturbo sequenziale',    score:7, bm:1.45, sub:'+45% potenza',                    costB:13000},
+      {l:'Triturbo + Compressore', score:10,bm:1.70, sub:'+70% potenza — assurdo',          costB:38000},
+    ]},
+  { id:'stage', name:'TUNING / STAGE', desc:'Livello di elaborazione',
+    tiers:[
+      {l:'Stage 0 — Stock',     score:1, sm:1.00, scv:0,   sub:'Nessuna modifica',                      costS:0},
+      {l:'Stage 1 — ECU',       score:3, sm:1.10, scv:15,  sub:'+15 CV (remap + filtro aria)',           costS:700},
+      {l:'Stage 2 — Bolt-on',   score:5, sm:1.25, scv:45,  sub:'+45 CV (scarico + intercooler)',         costS:3200},
+      {l:'Stage 3 — Forged',    score:7, sm:1.55, scv:110, sub:'+110 CV (pistoni e bielle forgiati)',    costS:11000},
+      {l:'Stage 4+ — Full Race',score:10,sm:2.00, scv:280, sub:'+280 CV (motore racing completo)',       costS:42000},
+    ]},
+  { id:'aero', name:'AERODINAMICA', desc:'Resistenza aerodinamica',
+    tiers:[
+      {l:'Cx 0.42 — Nessuna', score:1, cx:0.42, sub:'Forma a mattone — frena da sola', costA:100},
+      {l:'Cx 0.33 — Base',    score:3, cx:0.33, sub:'Forma di serie ottimizzata',       costA:600},
+      {l:'Cx 0.27 — Aerokit', score:5, cx:0.27, sub:'Spoiler + diffusore attivo',       costA:2800},
+      {l:'Cx 0.22 — Racing',  score:8, cx:0.22, sub:'Full downforce — ala e canard',    costA:9500},
+      {l:'Cx 0.17 — Formula', score:10,cx:0.17, sub:'Efficienza da monoposto',          costA:28000},
+    ]},
+  { id:'peso', name:'PESO A VUOTO', desc:'Massa prima della scocca',
+    tiers:[
+      {l:'2.100 kg', score:1, kg:2100, sub:'Enormemente pesante',        costW:0},
+      {l:'1.600 kg', score:3, kg:1600, sub:'Pesante — berlina standard', costW:0},
+      {l:'1.250 kg', score:5, kg:1250, sub:'Equilibrato — coupé',        costW:0},
+      {l:'980 kg',   score:8, kg:980,  sub:'Leggero — roadster',         costW:0},
+      {l:'720 kg',   score:10,kg:720,  sub:'Piuma — vettura estrema',    costW:0},
+    ]},
+  { id:'scocca', name:'MATERIALE SCOCCA', desc:'Struttura — modifica il peso finale',
+    tiers:[
+      {l:'Acciaio dolce',          score:1, wD:+80,  sub:'Aggiunge 80 kg — pesante',       costSk:2500},
+      {l:'Acciaio AHSS',           score:3, wD:0,    sub:'Neutro — resistente',             costSk:7000},
+      {l:'Alluminio',              score:5, wD:-150, sub:'−150 kg — standard premium',      costSk:17000},
+      {l:'Fibra di vetro GFRP',    score:7, wD:-220, sub:'−220 kg — sportivo accessibile',  costSk:24000},
+      {l:'Fibra di carbonio CFRP', score:10,wD:-380, sub:'−380 kg — il massimo leggero',    costSk:85000},
+    ]},
+  { id:'traz', name:'TRAZIONE', desc:'Ruote motrici',
+    tiers:[
+      {l:'FWD — Anteriore',         score:2, tf:0.62, sub:'Sottosterzo — limite chiaro',          costT:0},
+      {l:'RWD — Posteriore',        score:4, tf:0.72, sub:'Sovrasterzo — divertente ma insidioso',costT:700},
+      {l:'AWD — Integrale',         score:6, tf:0.85, sub:'4x4 bilanciato',                       costT:3800},
+      {l:'AWD Torque Vectoring',    score:8, tf:0.93, sub:'Coppia vettorizzata per ruota',         costT:9500},
+      {l:'AWD 4 motori elettrici',  score:10,tf:1.00, sub:'Un motore su ogni ruota',              costT:32000},
+    ]},
+  { id:'susp', name:'SOSPENSIONI', desc:'Schema sospensivo',
+    tiers:[
+      {l:'McPherson / Assale tors.', score:2, sf:0.80, sub:'Base — comfort prioritario',         costSu:400},
+      {l:'McPherson / Multi-link',   score:4, sf:0.88, sub:'Migliorato — buon compromesso',      costSu:1400},
+      {l:'Doppio braccio / Multi-link',score:6,sf:0.93,sub:'Sportivo — precisione alta',         costSu:4200},
+      {l:'Pushrod / Pushrod',        score:8, sf:0.97, sub:'Racing — grip estremo',              costSu:16000},
+      {l:'Attive magnetiche',        score:10,sf:1.00, sub:'Controllo adattivo in tempo reale',  costSu:31000},
+    ]},
+  { id:'cambio', name:'CAMBIO', desc:'Tipo di trasmissione',
+    tiers:[
+      {l:'CVT',                 score:2, gf:0.78, sub:'Variatore — lento a rispondere', costG:900},
+      {l:'Manuale 5 marce',     score:3, gf:0.84, sub:'Classico — divertente',          costG:1800},
+      {l:'Automatico 8A',       score:5, gf:0.89, sub:'Comfort + efficienza',           costG:4200},
+      {l:'DCT 7 marce',         score:7, gf:0.95, sub:'Doppia frizione — reattivo',     costG:7500},
+      {l:'Sequenziale Racing',  score:10,gf:1.00, sub:'Cambiata in 50ms — da corsa',    costG:27000},
+    ]},
+  { id:'diff', name:'DIFFERENZIALE', desc:'Gestione coppia',
+    tiers:[
+      {l:'Differenziale aperto',    score:2, df:0.75, sub:'Base — slittamento facile',          costD:150},
+      {l:'LSD a frizione',          score:4, df:0.84, sub:'Limitato — meno slittamento',        costD:1100},
+      {l:'LSD Torsen meccanico',    score:6, df:0.91, sub:'Auto-bloccante progressivo',         costD:3300},
+      {l:'LSD elettronico attivo',  score:8, df:0.96, sub:'Controllo elettronico preciso',      costD:6200},
+      {l:'LSD Quaife + Vectoring',  score:10,df:1.00, sub:'Massima trasmissione coppia',        costD:14500},
+    ]},
+  { id:'tyre', name:'PNEUMATICI', desc:'Tipo di mescola',
+    tiers:[
+      {l:'175/70 R14 — Eco',         score:1, tyf:0.70, sub:'Mescola dura — grip minimo',        costTy:350},
+      {l:'215/55 R17 — Touring',     score:3, tyf:0.82, sub:'Uso misto — equilibrate',           costTy:750},
+      {l:'245/40 R18 — Sport',       score:5, tyf:0.90, sub:'Alta performance',                  costTy:1800},
+      {l:'265/30 R20 — Semi-slick',  score:8, tyf:0.97, sub:'Quasi racing — grip elevatissimo',  costTy:4200},
+      {l:'305/30 R20 — Slick',       score:10,tyf:1.00, sub:'Solo pista — grip assoluto',        costTy:9500},
+    ]},
+  { id:'int_tech', name:'TECNOLOGIA INTERNI', desc:'Infotainment e sistemi di bordo — incide solo sul costo',
+    tiers:[
+      {l:'Radio FM + Display analogico',        score:1, sub:'Nessuna tecnologia — anni 90',                    costIT:200},
+      {l:'Touchscreen 8" + Bluetooth',          score:3, sub:'Standard moderno base',                           costIT:1800},
+      {l:'Schermo 12" + CarPlay/Android Auto',  score:5, sub:'Connettivita completa + navigazione',             costIT:4500},
+      {l:'Dual screen 15" + HUD AR',            score:8, sub:'Head-up display realta aumentata + AI assist',    costIT:12000},
+      {l:'Cockpit digitale 360° + AI integrata',score:10,sub:'Intelligenza artificiale di bordo — futuristico', costIT:35000},
+    ]},
+  { id:'int_mat', name:'MATERIALE INTERNI', desc:'Rivestimenti abitacolo — incide su peso e costo',
+    tiers:[
+      {l:'Plastica e tessuto base',        score:1, wiD:+25,  sub:'+25 kg — economico e pesante',         costIM:500},
+      {l:'Similpelle e Alcantara',         score:3, wiD:+15,  sub:'+15 kg — comfort medio',               costIM:2500},
+      {l:'Pelle piena Nappa',              score:5, wiD:+8,   sub:'+8 kg — lusso classico',               costIM:7000},
+      {l:'Pelle traforata + fibra decor.', score:8, wiD:0,    sub:'Neutro — sportivo di pregio',          costIM:18000},
+      {l:'Fibra di carbonio + Alcantara',  score:10,wiD:-12,  sub:'-12 kg — leggero e racing',            costIM:45000},
+    ]},
+];
+
+const TOTAL = STATS.length;
+
+// ================================================================
+// PROGRESS DOTS
+// ================================================================
+function initDots() {
+  const c = document.getElementById('pDots');
+  c.innerHTML = '';
+  for (let i = 0; i < TOTAL; i++) {
+    const d = document.createElement('div');
+    d.className = 'pdot' + (i === 0 ? ' active' : '');
+    d.id = 'dot' + i;
+    d.textContent = i + 1;
+    c.appendChild(d);
+  }
+}
+initDots();
+
+function updateProg(n, rk) {
+  document.getElementById('pText').textContent = `SPIN ${n} / ${TOTAL}`;
+  const p = Math.round(n / TOTAL * 100);
+  document.getElementById('pPct').textContent = p + '%';
+  document.getElementById('pFill').style.width = p + '%';
+  if (n > 0) {
+    const d = document.getElementById('dot' + (n - 1));
+    if (d) { d.className = 'pdot done-' + rk; d.textContent = '✓'; }
+  }
+  if (n < TOTAL) {
+    const d = document.getElementById('dot' + n);
+    if (d) d.className = 'pdot active';
+    document.getElementById('nName').textContent = STATS[n].name;
+  } else {
+    document.getElementById('nHint').style.display = 'none';
+  }
+}
+
+// ================================================================
+// STATE
+// ================================================================
+let spinN = 0, collected = [], isSpinning = false;
+
+// ================================================================
+// PICK RARITY by probability
+// ================================================================
+function pickRarity() {
+  let r = Math.random(), cumul = 0;
+  for (const seg of SEGS) {
+    cumul += seg.prob;
+    if (r < cumul) return seg;
+  }
+  return SEGS[0];
+}
+
+// ================================================================
+// SPIN — deterministic wheel alignment
+// ================================================================
+function spin() {
+  if (isSpinning || spinN >= TOTAL) return;
+  isSpinning = true;
+  document.getElementById('spinBtn').disabled = true;
+
+  // Step 1: Pick the rarity segment that will win
+  const winningSeg = pickRarity();
+
+  // Step 2: Compute the target wheelAngle so winningSeg.mid lands at POINTER_ANGLE
+  // After rotation by wheelAngle, segment mid is at: winningSeg.mid + wheelAngle
+  // We want that to equal POINTER_ANGLE (mod TAU)
+  // So: wheelAngle_target = POINTER_ANGLE - winningSeg.mid  (+ k*TAU for k integer)
+  const targetAngle = targetWheelAngle(winningSeg, wheelAngle);
+
+  // Step 3: Animate from wheelAngle to targetAngle
+  const startAngle = wheelAngle;
+  const deltaAngle = targetAngle - startAngle; // always positive (forward spin)
+
+  const duration = 3800;
+  const t0 = performance.now();
+
+  function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+
+  function tick(now) {
+    const elapsed = now - t0;
+    const t = Math.min(elapsed / duration, 1);
+    wheelAngle = startAngle + deltaAngle * easeOut(t);
+    drawWheel();
+
+    if (t < 1) {
+      requestAnimationFrame(tick);
+    } else {
+      // Snap to exact target
+      wheelAngle = targetAngle;
+      drawWheel();
+      isSpinning = false;
+      // Use winningSeg.tierIdx to index into STATS tiers — this NEVER changes
+      onResult(winningSeg);
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+// ================================================================
+// ON RESULT — tierIdx is 0,1,2,3,4 = common,uncommon,rare,epic,legendary
+// No randomness here. Rarity → tierIdx → tier. Done.
+// ================================================================
+function onResult(seg) {
+  const stat = STATS[spinN];
+  const tier = stat.tiers[seg.tierIdx];  // DIRECT mapping, zero ambiguity
+
+  if (seg.key === 'legendary' || seg.key === 'epic') fireSparks(seg.color);
+
+  let extra = '';
+  if (stat.id === 'stage') {
+    const cvSt = collected.find(s => s.id === 'cv');
+    const bSt  = collected.find(s => s.id === 'boost');
+    const base = (cvSt ? cvSt.cv : 160) * (bSt ? bSt.bm : 1.0);
+    const fin  = Math.round(base * tier.sm + tier.scv);
+    extra = `<div class="sextra">CV finali stimati: <strong>${fin} CV</strong></div>`;
+  }
+  if (stat.id === 'scocca') {
+    const pSt = collected.find(s => s.id === 'peso');
+    const base = pSt ? pSt.kg : 1300;
+    const fin  = Math.max(350, base + tier.wD);
+    extra = `<div class="sextra">Peso finale: <strong>${fin} kg</strong></div>`;
+  }
+  if (stat.id === 'int_mat') {
+    const pSt   = collected.find(s => s.id === 'peso');
+    const skSt  = collected.find(s => s.id === 'scocca');
+    const base  = pSt  ? pSt.kg  : 1300;
+    const wSk   = skSt ? skSt.wD : 0;
+    const fin   = Math.max(350, base + wSk + tier.wiD);
+    extra = `<div class="sextra">Peso finale con interni: <strong>${fin} kg</strong></div>`;
+  }
+
+  document.getElementById('resArea').innerHTML = `
+    <div class="scard ${seg.key}">
+      <span class="rbadge">${seg.name}</span>
+      <div class="sname">${stat.name}</div>
+      <div class="sval">${tier.l}</div>
+      ${tier.sub ? `<div class="ssub">${tier.sub}</div>` : ''}
+      ${extra}
+      <div class="sdesc">${stat.desc}</div>
+    </div>`;
+
+  // Scroll result into view on mobile
+  setTimeout(() => {
+    document.getElementById('resArea').scrollIntoView({behavior:'smooth', block:'nearest'});
+  }, 100);
+
+  collected.push({ ...tier, id: stat.id, name: stat.name, label: tier.l, rarity: seg.key });
+  spinN++;
+  updateProg(spinN, seg.key);
+  renderColl();
+
+  if (spinN >= TOTAL) {
+    setTimeout(() => {
+      document.getElementById('spinBtn').disabled = true;
+      document.getElementById('spinBtn').textContent = 'COMPLETO!';
+      setTimeout(showFinal, 950);
+    }, 500);
+  } else {
+    document.getElementById('spinBtn').disabled = false;
+  }
+}
+
+function renderColl() {
+  document.getElementById('cCount').textContent = `${spinN} / ${TOTAL}`;
+  document.getElementById('coll').innerHTML = collected.map(s => `
+    <div class="ci ${s.rarity}">
+      <div class="cn">${s.name}</div>
+      <div class="cv2">${s.label}</div>
+    </div>`).join('');
+}
+
+// ================================================================
+// FINAL RESULTS
+// ================================================================
+function showFinal() {
+  const G = id => collected.find(s => s.id === id) || {};
+
+  const baseCv  = G('cv').cv   || 160;
+  const boostM  = G('boost').bm|| 1.0;
+  const stageM  = G('stage').sm|| 1.0;
+  const stageCv = G('stage').scv|| 0;
+  const baseKg  = G('peso').kg  || 1400;
+  const wD      = G('scocca').wD  !== undefined ? G('scocca').wD  : 0;
+  const wiD     = G('int_mat').wiD !== undefined ? G('int_mat').wiD : 0;
+  const cx      = G('aero').cx  || 0.33;
+  const tf      = G('traz').tf  || 0.72;
+  const sf      = G('susp').sf  || 0.88;
+  const gf      = G('cambio').gf|| 0.88;
+  const df      = G('diff').df  || 0.85;
+  const tyf     = G('tyre').tyf || 0.82;
+
+  const finalCv = Math.round(baseCv * boostM * stageM + stageCv);
+  const finalKg = Math.max(350, baseKg + wD + wiD);
+  const pw      = finalCv / (finalKg / 1000);
+
+  // 0-100: purely from power-to-weight, adjusted by grip factors
+  // Calibration: pw=500 ≈ 3.2s | pw=150 ≈ 7s | pw=50 ≈ 14s
+  const base0100 = 220 / Math.pow(pw, 0.72);
+  const gripMult = tf * tyf * df * gf * sf;  // 0…1, all factors
+  // Good grip reduces time (max ~40% reduction with perfect setup)
+  const sprint   = Math.max(1.6, Math.min(22, base0100 * (1 - gripMult * 0.40)));
+
+  // Vmax: power vs aero drag, adjusted by weight
+  // V ∝ (P / (Cx * m))^(1/3)
+  const vmax = Math.round(Math.min(430, 91 * Math.pow(finalCv / (cx * finalKg * 0.001), 0.33)));
+
+  // Half mile (805m) ET
+  const lbs   = finalKg * 2.20462;
+  const rawET = 6.269 * Math.pow(lbs / finalCv, 1/3);
+  const halfM = Math.max(6.5, Math.min(30, rawET * 1.38 * (1 - gripMult * 0.22)));
+
+  // Cost
+  let cost = 0;
+  const costKeys = ['costBase','costM','costF','costCV','costB','costS','costA','costW','costSk','costT','costSu','costG','costD','costTy','costIT','costIM'];
+  collected.forEach(s => costKeys.forEach(k => { if (s[k] != null) cost += s[k]; }));
+
+  // Rating
+  const avg = collected.reduce((a, s) => a + s.score, 0) / collected.length;
+  let rating, stars, rc;
+  if      (avg >= 9)   { rating = 'CLASSE S'; stars = '★★★★★'; rc = 'ss'; }
+  else if (avg >= 7.5) { rating = 'CLASSE A'; stars = '★★★★☆'; rc = 'sa'; }
+  else if (avg >= 5.5) { rating = 'CLASSE B'; stars = '★★★☆☆'; rc = 'sb'; }
+  else if (avg >= 3.5) { rating = 'CLASSE C'; stars = '★★☆☆☆'; rc = 'sc'; }
+  else                 { rating = 'CLASSE D'; stars = '★☆☆☆☆'; rc = 'sd'; }
+
+  const fmt = n => n >= 1000000 ? `€ ${(n/1000000).toFixed(2)} M`
+                 : n >= 1000    ? `€ ${Math.round(n/1000)} K`
+                 : `€ ${n}`;
+
+  document.getElementById('resArea').innerHTML = `
+    <div class="fin">
+      <div class="fin-hdr"><div class="flag">🏁</div><h2>RISULTATI FINALI</h2>
+        <p>// FISICA REALE BASATA SULLE TUE STATISTICHE //</p></div>
+      <div class="pgrid">
+        <div class="pi"><div class="pl">0 → 100 km/h</div><div class="pv h0">${sprint.toFixed(1)}</div><div class="pu">secondi</div></div>
+        <div class="pi"><div class="pl">Velocità Massima</div><div class="pv h1">${vmax}</div><div class="pu">km/h</div></div>
+        <div class="pi"><div class="pl">½ Miglio (805m)</div><div class="pv h2">${halfM.toFixed(2)}</div><div class="pu">secondi</div></div>
+        <div class="pi"><div class="pl">Potenza Finale</div><div class="pv h3">${finalCv}</div><div class="pu">CV totali</div></div>
+        <div class="pi"><div class="pl">Peso Finale</div><div class="pv h4">${finalKg}</div><div class="pu">kg</div></div>
+        <div class="pi"><div class="pl">CV / Tonnellata</div><div class="pv" style="color:#c0c0d8">${Math.round(pw)}</div><div class="pu">CV/t</div></div>
+      </div>
+      <div class="cost-sec"><div class="cost-lbl">// COSTO DI REALIZZAZIONE //</div><div class="cost-val">${fmt(cost)}</div></div>
+      <div class="score-sec"><div class="score-lbl">// VALUTAZIONE GENERALE //</div>
+        <div class="score-stars">${stars}</div><div class="score-name ${rc}">${rating}</div>
+        <br><button class="pa-btn" onclick="resetGame()">GIOCA ANCORA</button></div>
+    </div>`;
+
+  fireSparks('#ff9f1c');
+  setTimeout(() => fireSparks('#b06aff'), 280);
+  setTimeout(() => fireSparks('#3b9eff'), 560);
+}
+
+// ================================================================
+// RESET
+// ================================================================
+function resetGame() {
+  spinN = 0; collected = []; wheelAngle = 0; drawWheel();
+  initDots(); updateProg(0, null);
+  document.getElementById('resArea').innerHTML = '<div class="no-res">// GIRA LA RUOTA — COMUNE = SCARSO · LEGGENDARIO = ECCEZIONALE //</div>';
+  document.getElementById('coll').innerHTML = '';
+  document.getElementById('cCount').textContent = `0 / ${TOTAL}`;
+  document.getElementById('nHint').style.display = '';
+  document.getElementById('nName').textContent = STATS[0].name;
+  const b = document.getElementById('spinBtn');
+  b.disabled = false; b.textContent = 'GIRA';
+}
+
+// ================================================================
+// SPARKS
+// ================================================================
+function fireSparks(color) {
+  const c = document.getElementById('sparks');
+  const cx = window.innerWidth / 2, cy = window.innerHeight * 0.28;
+  for (let i = 0; i < 24; i++) {
+    const s = document.createElement('div'); s.className = 'spark';
+    const a = Math.random() * TAU, d = 70 + Math.random() * 150;
+    s.style.cssText = `left:${cx}px;top:${cy}px;background:${color};--tx:${Math.cos(a)*d}px;--ty:${Math.sin(a)*d}px;animation-delay:${Math.random()*.22}s;box-shadow:0 0 5px ${color};`;
+    c.appendChild(s); setTimeout(() => s.remove(), 1100);
+  }
+}
+</script>
+</body>
+</html>
